@@ -3,6 +3,7 @@
 import sys
 import configparser
 import ipaddress
+import socket
 from io import StringIO
 
 class ConfigParserMultiOpt(configparser.RawConfigParser):
@@ -116,7 +117,7 @@ def generate():
     ))
     output.write('/interface wireguard peers add allowed-address={} endpoint-address={} endpoint-port={} interface={} public-key="{}"\n'.format(
         allowedips,
-        endpoint.split(':')[0],
+        socket.gethostbyname(endpoint.split(':')[0]),
         endpoint.split(':')[1],
         d_name,
         publickey,
