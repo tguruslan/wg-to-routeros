@@ -99,7 +99,8 @@ class ConfigParserMultiOpt(configparser.RawConfigParser):
 def generate():
     config = ConfigParserMultiOpt()
     config.read(sys.argv[1])
-    
+    has_ipv6=False
+
     d_name = sys.argv[2]
     privatekey = config.get('Interface', 'PrivateKey')
     publickey = config.get('Peer', 'PublicKey')
@@ -123,10 +124,17 @@ def generate():
         publickey,
     ))
     for ip in address.split(","):
+      if type(ipaddress.ip_address(ip.split('/')[0])) is ipaddress.IPv4Address:
         output.write('/ip address add address={} interface={} network={}\n'.format(
             ip,
             d_name,
             str(ipaddress.ip_network(ip, strict=False)).split('/')[0]
+        ))
+      else:
+        has_ipv6=True
+        output.write('/ipv6 address add address={} advertise=no interface={}\n'.format(
+            ip,
+            d_name
         ))
     output.write('/ip firewall nat add action=masquerade chain=srcnat out-interface={}\n'.format(d_name))
     output.write('/ip firewall mangle add action=mark-routing chain=prerouting dst-address-list={} new-routing-mark={} passthrough=no\n'.format(
@@ -138,8 +146,25 @@ def generate():
         d_name,
     ))
 
+    if has_ipv6:
+      output.write('/ipv6 firewall nat add action=masquerade chain=srcnat out-interface={}\n'.format(d_name))
+      output.write('/ipv6 firewall mangle add action=mark-routing chain=prerouting dst-address-list={} new-routing-mark={} passthrough=no\n'.format(
+          d_name,
+          d_name
+      ))
+      output.write('/ipv6 route add disabled=no distance=1 dst-address=::/0 gateway={} routing-table={} scope=30 target-scope=10\n'.format(
+          d_name,
+          d_name,
+      ))
+
     for a_ip in allowedips.split(','):
+      if type(ipaddress.ip_address(a_ip.split('/')[0])) is ipaddress.IPv4Address:
         output.write('/ip firewall address-list add address={} list={}\n'.format(
+            a_ip,
+            d_name
+        ))
+      else:
+        output.write('/ipv6 firewall address-list add address={} list={}\n'.format(
             a_ip,
             d_name
         ))
